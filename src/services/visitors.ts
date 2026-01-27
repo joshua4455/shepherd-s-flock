@@ -11,7 +11,8 @@ async function getAll(): Promise<Visitor[]> {
   const { data, error } = await sb
     .from(table)
     .select('*')
-    .order('createdAt', { ascending: false });
+    .order('createdAt', { ascending: false })
+    .limit(100);
   if (error) throw error;
   return (data || []) as Visitor[];
 }
@@ -60,7 +61,13 @@ async function remove(id: string): Promise<void> {
 }
 
 export function useVisitors() {
-  return useQuery({ queryKey: queryKeys.visitors, queryFn: getAll });
+  return useQuery({
+    queryKey: queryKeys.visitors,
+    queryFn: getAll,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  });
 }
 
 export function useAddVisitor() {

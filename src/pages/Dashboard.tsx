@@ -38,7 +38,11 @@ const Dashboard = () => {
     const teensCount = members.filter(m => (m.serviceCategory || '').toLowerCase() === 'teens').length;
     const youthCount = members.filter(m => (m.serviceCategory || '').toLowerCase() === 'youth').length;
     const adultsCount = members.filter(m => (m.serviceCategory || '').toLowerCase() === 'adults').length;
-    return { totalMembers, newVisitorsThisMonth, newConvertsThisMonth, childrenCount, teensCount, youthCount, adultsCount };
+    // Previous month end for growth comparison
+    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const membersPrev = members.filter((m: any) => new Date(m.createdAt || 0) <= prevMonthEnd).length;
+    const membersGrowthPct = membersPrev > 0 ? Math.round(((totalMembers - membersPrev) / membersPrev) * 100) : null;
+    return { totalMembers, newVisitorsThisMonth, newConvertsThisMonth, childrenCount, teensCount, youthCount, adultsCount, membersPrev, membersGrowthPct } as const;
   }, [members, visitors, converts]);
 
   const recentConverts = useMemo(() => [...converts].sort((a,b) => (new Date(b.dateOfConversion).getTime() - new Date(a.dateOfConversion).getTime())).slice(0,3), [converts]);
@@ -83,7 +87,7 @@ const Dashboard = () => {
             value={membersLoading ? '…' : stats.totalMembers}
             icon={Users}
             variant="primary"
-            trend={{ value: 8, isPositive: true }}
+            trend={(!membersLoading && stats.membersGrowthPct !== null) ? { value: stats.membersGrowthPct, isPositive: (stats.membersGrowthPct || 0) >= 0 } : undefined}
           />
           <StatCard
             title="New Visitors"
@@ -105,7 +109,7 @@ const Dashboard = () => {
           >
             <StatCard
               title="Growth Rate"
-              value="+12%"
+              value={(!membersLoading && stats.membersGrowthPct !== null) ? `${stats.membersGrowthPct >= 0 ? '+' : ''}${stats.membersGrowthPct}%` : '—'}
               subtitle="Click for details →"
               icon={TrendingUp}
               className="group-hover:shadow-lg group-hover:border-primary/30 transition-all duration-200"

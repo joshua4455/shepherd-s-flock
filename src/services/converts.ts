@@ -11,7 +11,8 @@ async function getAll(): Promise<NewConvert[]> {
   const { data, error } = await sb
     .from(table)
     .select('*')
-    .order('createdAt', { ascending: false });
+    .order('createdAt', { ascending: false })
+    .limit(100);
   if (error) throw error;
   return (data || []) as NewConvert[];
 }
@@ -59,7 +60,13 @@ async function remove(id: string): Promise<void> {
 }
 
 export function useConverts() {
-  return useQuery({ queryKey: queryKeys.converts, queryFn: getAll });
+  return useQuery({
+    queryKey: queryKeys.converts,
+    queryFn: getAll,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  });
 }
 
 export function useAddConvert() {

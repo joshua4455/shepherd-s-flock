@@ -50,10 +50,16 @@ export function AnalyticsDialog({ open, onOpenChange }: AnalyticsDialogProps) {
 
   const currentMonth = monthlyData[monthlyData.length - 1] || { members: 0, converts: 0, visitors: 0 } as any;
   const previousMonth = monthlyData[monthlyData.length - 2] || currentMonth;
-  
-  const memberGrowth = ((currentMonth.members - previousMonth.members) / previousMonth.members * 100).toFixed(1);
-  const convertGrowth = ((currentMonth.converts - previousMonth.converts) / previousMonth.converts * 100).toFixed(1);
-  const visitorGrowth = ((currentMonth.visitors - previousMonth.visitors) / previousMonth.visitors * 100).toFixed(1);
+
+  const memberGrowth = previousMonth.members > 0
+    ? (((currentMonth.members - previousMonth.members) / previousMonth.members) * 100).toFixed(1)
+    : null;
+  const convertGrowth = previousMonth.converts > 0
+    ? (((currentMonth.converts - previousMonth.converts) / previousMonth.converts) * 100).toFixed(1)
+    : null;
+  const visitorGrowth = previousMonth.visitors > 0
+    ? (((currentMonth.visitors - previousMonth.visitors) / previousMonth.visitors) * 100).toFixed(1)
+    : null;
 
   const handleExport = () => {
     // Create CSV data
@@ -102,7 +108,7 @@ export function AnalyticsDialog({ open, onOpenChange }: AnalyticsDialogProps) {
                 <div>
                   <p className="text-sm text-muted-foreground">Member Growth</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-xl font-display font-semibold">+{memberGrowth}%</span>
+                    <span className="text-xl font-display font-semibold">{memberGrowth !== null ? `${Number(memberGrowth) >= 0 ? '+' : ''}${memberGrowth}%` : '—'}</span>
                     <TrendingUp className="w-4 h-4 text-emerald-500" />
                   </div>
                 </div>
@@ -116,7 +122,7 @@ export function AnalyticsDialog({ open, onOpenChange }: AnalyticsDialogProps) {
                 <div>
                   <p className="text-sm text-muted-foreground">Convert Growth</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-xl font-display font-semibold">+{convertGrowth}%</span>
+                    <span className="text-xl font-display font-semibold">{convertGrowth !== null ? `${Number(convertGrowth) >= 0 ? '+' : ''}${convertGrowth}%` : '—'}</span>
                     <TrendingUp className="w-4 h-4 text-emerald-500" />
                   </div>
                 </div>
@@ -130,7 +136,7 @@ export function AnalyticsDialog({ open, onOpenChange }: AnalyticsDialogProps) {
                 <div>
                   <p className="text-sm text-muted-foreground">Visitor Growth</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-xl font-display font-semibold">+{visitorGrowth}%</span>
+                    <span className="text-xl font-display font-semibold">{visitorGrowth !== null ? `${Number(visitorGrowth) >= 0 ? '+' : ''}${visitorGrowth}%` : '—'}</span>
                     <TrendingUp className="w-4 h-4 text-emerald-500" />
                   </div>
                 </div>
@@ -213,7 +219,7 @@ export function AnalyticsDialog({ open, onOpenChange }: AnalyticsDialogProps) {
             <ul className="space-y-2 text-sm">
               <li className="flex items-start gap-2">
                 <span className="text-primary">•</span>
-                <span>Total church membership change over last month: <strong>{memberGrowth}%</strong></span>
+                <span>Total church membership change over last month: <strong>{memberGrowth !== null ? `${memberGrowth}%` : '—'}</strong></span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary">•</span>

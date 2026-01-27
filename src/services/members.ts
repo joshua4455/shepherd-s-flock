@@ -11,7 +11,8 @@ async function getAll(): Promise<Member[]> {
   const { data, error } = await sb
     .from(table)
     .select('*')
-    .order('createdAt', { ascending: false });
+    .order('createdAt', { ascending: false })
+    .limit(100);
   if (error) throw error;
   return (data || []) as Member[];
 }
@@ -59,7 +60,13 @@ async function remove(id: string): Promise<void> {
 }
 
 export function useMembers() {
-  return useQuery({ queryKey: queryKeys.members, queryFn: getAll });
+  return useQuery({
+    queryKey: queryKeys.members,
+    queryFn: getAll,
+    staleTime: 2 * 60 * 1000, // cache for 2 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  });
 }
 
 export function useAddMember() {

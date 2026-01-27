@@ -54,6 +54,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAppendNotification, makeVisitorAddedNotice } from '@/services/notificationFeed';
 import { useAddVisitor, useDeleteVisitor, useUpdateVisitor, useVisitors } from '@/services/visitors';
 
 
@@ -63,6 +64,7 @@ const Visitors = () => {
   const addVisitor = useAddVisitor();
   const updateVisitor = useUpdateVisitor();
   const deleteVisitor = useDeleteVisitor();
+  const appendNotice = useAppendNotification();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<{
     status: 'all' | 'pending' | 'contacted' | 'converted' | 'member';
@@ -123,7 +125,12 @@ const Visitors = () => {
       });
     } else {
       addVisitor.mutate(formData, {
-        onSuccess: () => toast.success('New visitor added successfully'),
+        onSuccess: () => {
+          toast.success('New visitor added successfully');
+          const name = String(formData.fullName || 'Visitor');
+          const service = String(formData.serviceAttended || 'adults');
+          appendNotice.mutate(makeVisitorAddedNotice(name, service));
+        },
         onError: () => toast.error('Failed to add visitor'),
       });
     }

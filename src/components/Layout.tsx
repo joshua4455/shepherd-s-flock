@@ -3,14 +3,8 @@ import { Sidebar, MobileMenuButton } from './Sidebar';
 import { Search, Bell } from 'lucide-react';
 import { Input } from './ui/input';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useNotificationFeed, useNotificationRealtime, Notice } from '@/services/notificationFeed';
 
 interface LayoutProps {
   children: ReactNode;
@@ -23,34 +17,20 @@ export function Layout({ children }: LayoutProps) {
   const [headerQuery, setHeaderQuery] = useState('');
   const debounceRef = useRef<number | null>(null);
 
-  type Notice = { id: string; title: string; message?: string; ts: string; read?: boolean };
-  const [notices, setNotices] = useState<Notice[]>([]);
+  const { data: notices = [] } = useNotificationFeed();
+  useNotificationRealtime();
   const unreadCount = useMemo(() => notices.filter(n => !n.read).length, [notices]);
-
-  // Load/save notifications from localStorage
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('churchhub_notification_feed');
-      if (raw) {
-        setNotices(JSON.parse(raw));
-      } else {
-        // Seed a couple of helpful example notifications
-        const seed: Notice[] = [
-          { id: 'n1', title: 'New visitor added', message: 'Mary Smith (Adults)', ts: new Date().toISOString(), read: false },
-          { id: 'n2', title: 'Follow-up reminder', message: '3 converts pending contact', ts: new Date(Date.now()-3600_000).toISOString(), read: true },
-        ];
-        setNotices(seed);
-        localStorage.setItem('churchhub_notification_feed', JSON.stringify(seed));
-      }
-    } catch {}
-  }, []);
-
-  const persistNotices = (next: Notice[]) => {
-    setNotices(next);
-    try { localStorage.setItem('churchhub_notification_feed', JSON.stringify(next)); } catch {}
+  // For now, mark/clear are local UI only (no server mutation implemented yet)
+  const [localReadMap, setLocalReadMap] = useState<Record<string, boolean>>({});
+  const markAllRead = () => {
+    const map: Record<string, boolean> = {};
+    for (const n of notices) map[n.id] = true;
+    setLocalReadMap(map);
   };
-  const markAllRead = () => persistNotices(notices.map(n => ({ ...n, read: true })));
-  const clearAll = () => persistNotices([]);
+  const clearAll = () => {
+    // Hide locally by treating all as read
+    setLocalReadMap(Object.fromEntries(notices.map(n => [n.id, true])));
+  };
 
   // Reflect current URL `q` param in the header input
   useEffect(() => {
@@ -122,7 +102,7 @@ export function Layout({ children }: LayoutProps) {
                     <div className="p-3 text-sm text-muted-foreground">No notifications</div>
                   ) : (
                     <div className="max-h-72 overflow-auto">
-                      {notices.map(n => (
+                      {notices.filter(n => !localReadMap[n.id]).map(n => (
                         <DropdownMenuItem key={n.id} className="whitespace-normal py-2">
                           <div className="space-y-0.5">
                             <p className={`text-sm ${n.read ? 'text-foreground' : 'font-medium'}`}>{n.title}</p>
