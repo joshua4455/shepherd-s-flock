@@ -1,10 +1,11 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Sidebar, MobileMenuButton } from './Sidebar';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, Moon, Sun } from 'lucide-react';
 import { Input } from './ui/input';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useNotificationFeed, useNotificationRealtime, Notice } from '@/services/notificationFeed';
+import { resolveTheme, toggleTheme, getStoredTheme } from '@/lib/theme';
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,6 +17,7 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [headerQuery, setHeaderQuery] = useState('');
   const debounceRef = useRef<number | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => resolveTheme(getStoredTheme()));
 
   const { data: notices = [] } = useNotificationFeed();
   useNotificationRealtime();
@@ -79,6 +81,19 @@ export function Layout({ children }: LayoutProps) {
 
             {/* Actions */}
             <div className="flex items-center gap-2 lg:gap-4">
+              {/* Theme Toggle */}
+              <button
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+                aria-label="Toggle theme"
+                onClick={() => setTheme(toggleTheme())}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <Moon className="w-5 h-5 text-muted-foreground" />
+                )}
+              </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="relative p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Notifications">

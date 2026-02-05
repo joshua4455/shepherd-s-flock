@@ -2,7 +2,11 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { registerSW } from 'virtual:pwa-register';
+import { applyTheme, getStoredTheme } from '@/lib/theme';
 import { toast } from 'sonner';
+
+// Apply theme early to prevent flash
+applyTheme(getStoredTheme());
 
 const rootEl = document.getElementById("root")!;
 createRoot(rootEl).render(<App />);
