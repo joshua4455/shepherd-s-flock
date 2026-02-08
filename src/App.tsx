@@ -8,6 +8,7 @@ import Members from "./pages/Members";
 import Converts from "./pages/Converts";
 import Visitors from "./pages/Visitors";
 import Settings from "./pages/Settings";
+import Reports from "./pages/Reports";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import ResetSent from "./pages/ResetSent";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/converts" element={<ProtectedRoute><Converts /></ProtectedRoute>} />
             <Route path="/visitors" element={<ProtectedRoute><Visitors /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

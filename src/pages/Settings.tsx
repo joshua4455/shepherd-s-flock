@@ -33,9 +33,9 @@ import {
 import { useMembers, useReplaceMembers } from '@/services/members';
 import { useVisitors, useReplaceVisitors } from '@/services/visitors';
 import { useConverts, useReplaceConverts } from '@/services/converts';
-import { useProfiles, useAddProfile, useUpdateProfile, useDeleteProfile, useInviteUser } from '@/services/users';
+import { useProfiles, useUpdateProfile, useDeleteProfile, useCreateUserWithLogin } from '@/services/users';
 import { getSupabase } from '@/lib/supabase';
-import { useNotificationPrefs, useUpdateNotificationPrefs } from '@/services/notifications';
+import { useNotificationPrefs, useUpdateNotificationPrefs, type NotificationPrefs } from '@/services/notifications';
 
 type Role = 'Admin' | 'Leader';
 
@@ -51,10 +51,9 @@ const Settings = () => {
   // Users state (Supabase profiles when available, fallback local demo)
   const sb = getSupabase();
   const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
-  const addProfile = useAddProfile();
   const updateProfile = useUpdateProfile();
   const deleteProfile = useDeleteProfile();
-  const inviteUser = useInviteUser();
+  const createUserWithLogin = useCreateUserWithLogin();
   const [users, setUsers] = useState<UserRow[]>([
     { id: '1', initials: 'JD', name: 'John Doe', email: 'john@gracechurch.org', role: 'Admin' },
     { id: '2', initials: 'SJ', name: 'Sarah Johnson', email: 'sarah@gracechurch.org', role: 'Leader' },
@@ -68,15 +67,17 @@ const Settings = () => {
   // Notification preferences (Supabase per-user with local fallback)
   const { data: notifData } = useNotificationPrefs();
   const updateNotif = useUpdateNotificationPrefs();
-  const [notif, setNotif] = useState<{ visitorAlerts: boolean; followupReminders: boolean; weeklyReports: boolean }>(
-    { visitorAlerts: true, followupReminders: true, weeklyReports: false }
-  );
+  const [notif, setNotif] = useState<NotificationPrefs>({
+    visitorAlerts: true,
+    followupReminders: true,
+    monthlyReports: false,
+  });
 
   useEffect(() => {
     if (notifData) setNotif(notifData);
   }, [notifData]);
 
-  const persistNotif = (next: typeof notif) => {
+  const persistNotif = (next: NotificationPrefs) => {
     setNotif(next);
     updateNotif.mutate(next);
   };
@@ -99,13 +100,16 @@ const Settings = () => {
 
     if (sb) {
       try {
-        await inviteUser.mutateAsync(newUser.email);
-        await addProfile.mutateAsync({ name: newUser.name, email: newUser.email, role: newUser.role });
-        toast.success('Invitation sent and profile created');
+        const res = await createUserWithLogin.mutateAsync({
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+        });
+        toast.success(`User created. Temporary password: ${res.temporaryPassword}`);
         setAddOpen(false);
         setNewUser({ name: '', email: '', role: 'Leader' });
       } catch (e: any) {
-        toast.error(e?.message || 'Failed to invite user');
+        toast.error(e?.message || 'Failed to create user');
       }
       return;
     }
@@ -638,15 +642,16 @@ const Settings = () => {
             <Separator />
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="font-medium text-sm lg:text-base">Weekly Reports</p>
-                <p className="text-xs lg:text-sm text-muted-foreground">Get weekly summary reports via email</p>
+                <p className="font-medium text-sm lg:text-base">Monthly Reports</p>
+                <p className="text-xs lg:text-sm text-muted-foreground">Get monthly summary reports via email</p>
               </div>
               <Switch
-                checked={notif.weeklyReports}
+                checked={(notif as any).monthlyReports ?? (notif as any).weeklyReports}
                 onCheckedChange={(c) => {
-                  const next = { ...notif, weeklyReports: !!c };
+                  const next = { ...notif, monthlyReports: !!c } as any;
+                  delete next.weeklyReports;
                   persistNotif(next);
-                  toast.success(c ? 'Weekly reports enabled' : 'Weekly reports disabled');
+                  toast.success(c ? 'Monthly reports enabled' : 'Monthly reports disabled');
                 }}
               />
             </div>

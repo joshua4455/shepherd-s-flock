@@ -5,6 +5,7 @@ export const queryKeys = {
   profiles: ['profiles'] as const,
   notifications: ['notifications'] as const,
   notificationFeed: ['notificationFeed'] as const,
+  monthlyReports: ['monthlyReports'] as const,
 };
 
 export function delay(ms = 150) {

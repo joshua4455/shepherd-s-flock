@@ -12,6 +12,9 @@ export interface ProfileRow {
   updatedAt: string;
 }
 
+export type CreateUserWithLoginInput = { name: string; email: string; role: UserRole };
+export type CreateUserWithLoginResult = { userId: string; temporaryPassword: string };
+
 const table = (import.meta as any).env?.VITE_SUPABASE_PROFILES_TABLE || 'profiles';
 
 async function listProfiles(): Promise<ProfileRow[]> {
@@ -74,6 +77,24 @@ async function inviteByEmail(email: string): Promise<void> {
   if (error) throw error;
 }
 
+async function createUserWithLogin(input: CreateUserWithLoginInput): Promise<CreateUserWithLoginResult> {
+  const sb = getSupabase();
+  if (!sb) throw new Error('Supabase not configured');
+  const fn: any = (sb as any).functions;
+  if (!fn?.invoke) throw new Error('Supabase Functions client not available');
+
+  const { data, error } = await fn.invoke('create_user', {
+    body: {
+      name: input.name,
+      email: input.email,
+      role: input.role,
+    },
+  });
+
+  if (error) throw error;
+  return data as CreateUserWithLoginResult;
+}
+
 export function useProfiles() {
   return useQuery({ queryKey: queryKeys.profiles, queryFn: listProfiles });
 }
@@ -104,4 +125,12 @@ export function useDeleteProfile() {
 
 export function useInviteUser() {
   return useMutation({ mutationFn: (email: string) => inviteByEmail(email) });
+}
+
+export function useCreateUserWithLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createUserWithLogin,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.profiles }),
+  });
 }

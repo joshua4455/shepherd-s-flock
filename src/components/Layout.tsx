@@ -117,8 +117,16 @@ export function Layout({ children }: LayoutProps) {
                     <div className="p-3 text-sm text-muted-foreground">No notifications</div>
                   ) : (
                     <div className="max-h-72 overflow-auto">
-                      {notices.filter(n => !localReadMap[n.id]).map(n => (
-                        <DropdownMenuItem key={n.id} className="whitespace-normal py-2">
+                      {notices.filter(n => !localReadMap[n.id]).map((n) => (
+                        <DropdownMenuItem
+                          key={n.id}
+                          className="whitespace-normal py-2"
+                          onClick={() => {
+                            if (n.title === 'Monthly report ready') {
+                              navigate('/reports');
+                            }
+                          }}
+                        >
                           <div className="space-y-0.5">
                             <p className={`text-sm ${n.read ? 'text-foreground' : 'font-medium'}`}>{n.title}</p>
                             {n.message && <p className="text-xs text-muted-foreground">{n.message}</p>}
