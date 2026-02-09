@@ -14,6 +14,7 @@ export interface ProfileRow {
 
 export type CreateUserWithLoginInput = { name: string; email: string; role: UserRole };
 export type CreateUserWithLoginResult = { userId: string; temporaryPassword: string };
+export type DeleteUserAdminInput = { userId: string };
 
 const table = (import.meta as any).env?.VITE_SUPABASE_PROFILES_TABLE || 'profiles';
 
@@ -83,16 +84,53 @@ async function createUserWithLogin(input: CreateUserWithLoginInput): Promise<Cre
   const fn: any = (sb as any).functions;
   if (!fn?.invoke) throw new Error('Supabase Functions client not available');
 
+  const { data: sessionData, error: sessionErr } = await sb.auth.getSession();
+  if (sessionErr) throw sessionErr;
+  const accessToken = sessionData?.session?.access_token;
+  if (!accessToken) throw new Error('You must be logged in to create users');
+
+  try {
+    const payloadPart = accessToken.split('.')[1] || '';
+    const payloadJson = JSON.parse(atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')));
+    console.info('[supabase] access token iss:', payloadJson?.iss);
+  } catch {
+    // ignore decode errors
+  }
+
   const { data, error } = await fn.invoke('create_user', {
     body: {
       name: input.name,
       email: input.email,
       role: input.role,
     },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
   });
 
   if (error) throw error;
   return data as CreateUserWithLoginResult;
+}
+
+async function deleteUserAdmin(input: DeleteUserAdminInput): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) throw new Error('Supabase not configured');
+  const fn: any = (sb as any).functions;
+  if (!fn?.invoke) throw new Error('Supabase Functions client not available');
+
+  const { data: sessionData, error: sessionErr } = await sb.auth.getSession();
+  if (sessionErr) throw sessionErr;
+  const accessToken = sessionData?.session?.access_token;
+  if (!accessToken) throw new Error('You must be logged in to delete users');
+
+  const { error } = await fn.invoke('delete_user', {
+    body: { userId: input.userId },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (error) throw error;
 }
 
 export function useProfiles() {
@@ -131,6 +169,14 @@ export function useCreateUserWithLogin() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createUserWithLogin,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.profiles }),
+  });
+}
+
+export function useDeleteUserAdmin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: DeleteUserAdminInput) => deleteUserAdmin(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.profiles }),
   });
 }

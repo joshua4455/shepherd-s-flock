@@ -5,23 +5,38 @@ import { getSupabase } from '@/lib/supabase';
 
 const table = 'converts';
 
+function normalizeRow(r: any): NewConvert {
+  return {
+    ...r,
+    fullName: r.fullName ?? r.full_name,
+    serviceAttended: r.serviceAttended ?? r.service_attended,
+    phoneNumber: r.phoneNumber ?? r.phone_number,
+    dateOfConversion: r.dateOfConversion ?? r.date_of_conversion,
+    followUpStatus: r.followUpStatus ?? r.follow_up_status,
+    assignedLeader: r.assignedLeader ?? r.assigned_leader,
+    createdAt: r.createdAt ?? r.created_at,
+    updatedAt: r.updatedAt ?? r.updated_at,
+  } as NewConvert;
+}
+
 async function getAll(): Promise<NewConvert[]> {
   const sb = getSupabase();
   if (!sb) throw new Error('Supabase not configured');
   const { data, error } = await sb
     .from(table)
     .select('*')
-    .order('createdAt', { ascending: false })
     .limit(100);
   if (error) throw error;
-  return (data || []) as NewConvert[];
+  const rows = (data || []).map(normalizeRow);
+  rows.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return rows;
 }
 
 async function add(input: Partial<NewConvert>): Promise<NewConvert> {
   const sb = getSupabase();
   if (!sb) throw new Error('Supabase not configured');
   const now = new Date().toISOString();
-  const entity: NewConvert = {
+  const entity: any = {
     id: (globalThis.crypto?.randomUUID?.() || Date.now().toString()) as string,
     fullName: input.fullName || 'Unnamed',
     serviceAttended: input.serviceAttended || 'adults',
@@ -36,7 +51,7 @@ async function add(input: Partial<NewConvert>): Promise<NewConvert> {
   };
   const { data, error } = await sb.from(table).insert(entity).select().single();
   if (error) throw error;
-  return data as NewConvert;
+  return normalizeRow(data);
 }
 
 async function update(id: string, patch: Partial<NewConvert>): Promise<NewConvert> {
@@ -44,12 +59,12 @@ async function update(id: string, patch: Partial<NewConvert>): Promise<NewConver
   if (!sb) throw new Error('Supabase not configured');
   const { data, error } = await sb
     .from(table)
-    .update({ ...patch, updatedAt: new Date().toISOString() })
+    .update({ ...(patch as any), updatedAt: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single();
   if (error) throw error;
-  return data as NewConvert;
+  return normalizeRow(data);
 }
 
 async function remove(id: string): Promise<void> {

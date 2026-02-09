@@ -5,23 +5,38 @@ import { getSupabase } from '@/lib/supabase';
 
 const table = 'members';
 
+function normalizeRow(r: any): Member {
+  return {
+    ...r,
+    fullName: r.fullName ?? r.full_name,
+    serviceCategory: r.serviceCategory ?? r.service_category,
+    phoneNumber: r.phoneNumber ?? r.phone_number,
+    parentGuardian: r.parentGuardian ?? r.parent_guardian,
+    careGroup: r.careGroup ?? r.care_group,
+    dateOfBirth: r.dateOfBirth ?? r.date_of_birth,
+    createdAt: r.createdAt ?? r.created_at,
+    updatedAt: r.updatedAt ?? r.updated_at,
+  } as Member;
+}
+
 async function getAll(): Promise<Member[]> {
   const sb = getSupabase();
   if (!sb) throw new Error('Supabase not configured');
   const { data, error } = await sb
     .from(table)
     .select('*')
-    .order('createdAt', { ascending: false })
     .limit(100);
   if (error) throw error;
-  return (data || []) as Member[];
+  const rows = (data || []).map(normalizeRow);
+  rows.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return rows;
 }
 
 async function add(input: Partial<Member>): Promise<Member> {
   const sb = getSupabase();
   if (!sb) throw new Error('Supabase not configured');
   const now = new Date().toISOString();
-  const entity: Member = {
+  const entity: any = {
     id: (globalThis.crypto?.randomUUID?.() || Date.now().toString()) as string,
     fullName: input.fullName || 'Unnamed',
     serviceCategory: input.serviceCategory || 'adults',
@@ -36,7 +51,7 @@ async function add(input: Partial<Member>): Promise<Member> {
   };
   const { data, error } = await sb.from(table).insert(entity).select().single();
   if (error) throw error;
-  return data as Member;
+  return normalizeRow(data);
 }
 
 async function update(id: string, patch: Partial<Member>): Promise<Member> {
@@ -44,12 +59,12 @@ async function update(id: string, patch: Partial<Member>): Promise<Member> {
   if (!sb) throw new Error('Supabase not configured');
   const { data, error } = await sb
     .from(table)
-    .update({ ...patch, updatedAt: new Date().toISOString() })
+    .update({ ...(patch as any), updatedAt: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single();
   if (error) throw error;
-  return data as Member;
+  return normalizeRow(data);
 }
 
 async function remove(id: string): Promise<void> {

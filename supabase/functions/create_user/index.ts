@@ -4,9 +4,18 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_SERVICE_ROLE_KEY =
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
+  Deno.env.get("SERVICE_ROLE_KEY") ||
+  "";
 
 const PROFILES_TABLE = Deno.env.get("PROFILES_TABLE") || "profiles";
+
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error(
+    "Missing service role key. Set SUPABASE_SERVICE_ROLE_KEY (Dashboard Secrets) or SERVICE_ROLE_KEY (custom secret).",
+  );
+}
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -47,6 +56,29 @@ type CreateUserBody = {
   role: "Admin" | "Leader";
 };
 
+async function insertProfileRow(input: { id: string; name: string; email: string; role: string }) {
+  const candidates: Array<Record<string, unknown>> = [
+    { id: input.id, name: input.name, email: input.email, role: input.role },
+    { id: input.id, full_name: input.name, email: input.email, role: input.role },
+    { id: input.id, fullName: input.name, email: input.email, role: input.role },
+    { id: input.id, display_name: input.name, email: input.email, role: input.role },
+  ];
+
+  let lastErr: any = null;
+  for (const row of candidates) {
+    const { error } = await sb.from(PROFILES_TABLE).insert(row);
+    if (!error) return;
+    lastErr = error;
+
+    const msg = (error.message || "").toLowerCase();
+    const looksLikeColumnErr = msg.includes("column") && msg.includes("does not exist");
+    if (!looksLikeColumnErr) break;
+  }
+
+  if (lastErr) throw lastErr;
+  throw new Error("Failed to insert profile row");
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return corsPreflight();
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
@@ -57,7 +89,10 @@ serve(async (req: Request) => {
     if (!jwt) return json(401, { error: "Missing Authorization header" });
 
     const { data: caller, error: callerErr } = await sb.auth.getUser(jwt);
-    if (callerErr) return json(401, { error: "Invalid session" });
+    if (callerErr) {
+      console.error("getUser failed", { message: callerErr.message, status: (callerErr as any).status });
+      return json(401, { error: "Invalid session", detail: callerErr.message });
+    }
     const callerId = caller.user?.id;
     if (!callerId) return json(401, { error: "Invalid session" });
 
@@ -92,16 +127,11 @@ serve(async (req: Request) => {
     const userId = created.user?.id;
     if (!userId) return json(500, { error: "User created but missing id" });
 
-    const { error: profileErr } = await sb.from(PROFILES_TABLE).insert({
-      id: userId,
-      name,
-      email,
-      role,
-    });
-
-    if (profileErr) {
+    try {
+      await insertProfileRow({ id: userId, name, email, role });
+    } catch (profileErr: any) {
       await sb.auth.admin.deleteUser(userId);
-      return json(400, { error: profileErr.message });
+      return json(400, { error: profileErr?.message || "Profile insert failed" });
     }
 
     return json(200, { userId, temporaryPassword: password });

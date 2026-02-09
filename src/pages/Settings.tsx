@@ -33,7 +33,7 @@ import {
 import { useMembers, useReplaceMembers } from '@/services/members';
 import { useVisitors, useReplaceVisitors } from '@/services/visitors';
 import { useConverts, useReplaceConverts } from '@/services/converts';
-import { useProfiles, useUpdateProfile, useDeleteProfile, useCreateUserWithLogin } from '@/services/users';
+import { useProfiles, useUpdateProfile, useDeleteUserAdmin, useCreateUserWithLogin } from '@/services/users';
 import { getSupabase } from '@/lib/supabase';
 import { useNotificationPrefs, useUpdateNotificationPrefs, type NotificationPrefs } from '@/services/notifications';
 
@@ -52,7 +52,7 @@ const Settings = () => {
   const sb = getSupabase();
   const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
   const updateProfile = useUpdateProfile();
-  const deleteProfile = useDeleteProfile();
+  const deleteUserAdmin = useDeleteUserAdmin();
   const createUserWithLogin = useCreateUserWithLogin();
   const [users, setUsers] = useState<UserRow[]>([
     { id: '1', initials: 'JD', name: 'John Doe', email: 'john@gracechurch.org', role: 'Admin' },
@@ -63,6 +63,8 @@ const Settings = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [newUser, setNewUser] = useState<{ name: string; email: string; role: Role }>({ name: '', email: '', role: 'Leader' });
+  const [tempCredsOpen, setTempCredsOpen] = useState(false);
+  const [tempCreds, setTempCreds] = useState<{ email: string; temporaryPassword: string } | null>(null);
 
   // Notification preferences (Supabase per-user with local fallback)
   const { data: notifData } = useNotificationPrefs();
@@ -105,11 +107,18 @@ const Settings = () => {
           email: newUser.email,
           role: newUser.role,
         });
-        toast.success(`User created. Temporary password: ${res.temporaryPassword}`);
+        setTempCreds({ email: newUser.email, temporaryPassword: res.temporaryPassword });
+        setTempCredsOpen(true);
         setAddOpen(false);
         setNewUser({ name: '', email: '', role: 'Leader' });
       } catch (e: any) {
-        toast.error(e?.message || 'Failed to create user');
+        const msg = (e?.message || '').toString();
+        const lower = msg.toLowerCase();
+        if (lower.includes('already') && (lower.includes('registered') || lower.includes('exists'))) {
+          toast.error('This email is already registered in Supabase Auth. Use a different email, or delete the user from Auth (or use Delete in this Users list if available).');
+        } else {
+          toast.error(e?.message || 'Failed to create user');
+        }
       }
       return;
     }
@@ -579,7 +588,12 @@ const Settings = () => {
                     onClick={async () => {
                       if ((u.role || '').toLowerCase() === 'admin') { toast.error('Admin accounts cannot be deleted'); return; }
                       if (sb) {
-                        try { await deleteProfile.mutateAsync(u.id); toast.success('User deleted'); } catch (e: any) { toast.error(e?.message || 'Delete failed'); }
+                        try {
+                          await deleteUserAdmin.mutateAsync({ userId: u.id });
+                          toast.success('User deleted');
+                        } catch (e: any) {
+                          toast.error(e?.message || 'Delete failed');
+                        }
                       } else {
                         setUsers(prev => prev.filter(x => x.id !== u.id)); toast.success('User removed');
                       }
@@ -727,7 +741,7 @@ const Settings = () => {
 
       {/* Add User Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle className="font-display">Add New User</DialogTitle>
             <DialogDescription>Invite a new admin or leader to your church workspace.</DialogDescription>
@@ -761,6 +775,43 @@ const Settings = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button onClick={handleAddUser}>Add User</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={tempCredsOpen} onOpenChange={(o) => {
+        setTempCredsOpen(o);
+        if (!o) setTempCreds(null);
+      }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="font-display">Temporary Login Details</DialogTitle>
+            <DialogDescription>Copy this password now. You can close this window when you’re done.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input value={tempCreds?.email || ''} readOnly />
+            </div>
+            <div className="space-y-2">
+              <Label>Temporary Password</Label>
+              <div className="flex gap-2">
+                <Input value={tempCreds?.temporaryPassword || ''} readOnly />
+                <Button variant="outline" onClick={async () => {
+                  const v = tempCreds?.temporaryPassword || '';
+                  if (!v) return;
+                  try {
+                    await navigator.clipboard.writeText(v);
+                    toast.success('Password copied');
+                  } catch {
+                    toast.error('Failed to copy password');
+                  }
+                }}>Copy</Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setTempCredsOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
