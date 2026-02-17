@@ -68,7 +68,7 @@ export function QuickAddButton() {
         className={`w-14 h-14 rounded-full shadow-lg transition-all duration-300 ${
           isOpen 
             ? 'bg-muted-foreground hover:bg-muted-foreground/90 rotate-45' 
-            : 'bg-primary hover:bg-primary/90'
+            : 'bg-primary/15 text-primary border border-primary/25 shadow-md hover:bg-primary/25 hover:border-primary/35'
         }`}
       >
         {isOpen ? (
