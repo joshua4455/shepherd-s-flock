@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
 import Converts from "./pages/Converts";
@@ -12,11 +12,21 @@ import Reports from "./pages/Reports";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import ResetSent from "./pages/ResetSent";
+import ResetPassword from "./pages/ResetPassword";
 import { QuickAddButton } from "./components/QuickAddButton";
 import { AuthProvider } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
+
+const QuickAddGate = () => {
+  const { isAuthenticated } = useAuth();
+  const { pathname } = useLocation();
+  if (!isAuthenticated) return null;
+  if (pathname === "/login" || pathname === "/reset-sent" || pathname === "/reset-password") return null;
+  return <QuickAddButton />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -28,6 +38,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/reset-sent" element={<ResetSent />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
             <Route path="/converts" element={<ProtectedRoute><Converts /></ProtectedRoute>} />
@@ -37,7 +48,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-          <QuickAddButton />
+          <QuickAddGate />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

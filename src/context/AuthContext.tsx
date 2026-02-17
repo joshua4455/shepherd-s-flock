@@ -53,11 +53,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       sb.auth.getSession().then(({ data }) => {
         setIsAuthenticated(!!data.session);
-        if (data.session) ensureProfileExists();
+        const inResetFlow = window.location.pathname === '/reset-password';
+        if (data.session && !inResetFlow) ensureProfileExists();
       });
-      const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+      const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
         setIsAuthenticated(!!session);
-        if (session) {
+
+        const inResetFlow = window.location.pathname === '/reset-password';
+        const isRecoveryEvent = event === 'PASSWORD_RECOVERY';
+        if (session && !inResetFlow && !isRecoveryEvent) {
           ensureProfileExists().finally(() => navigate('/', { replace: true }));
         }
       });

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
+import { getSupabase } from '@/lib/supabase';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -188,16 +190,36 @@ const Login = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setForgotOpen(false)}>Cancel</Button>
-            <Button onClick={() => {
+            <Button disabled={forgotLoading} onClick={async () => {
               const v = forgotEmail.trim();
               const ok = /[^@\s]+@[^@\s]+\.[^@\s]+/.test(v);
               if (!ok) {
                 toast.error('Please enter a valid email address');
                 return;
               }
-              toast.success('If an account exists for this email, a reset link has been sent.');
-              setForgotOpen(false);
-              navigate('/reset-sent');
+
+              const sb = getSupabase();
+              if (!sb) {
+                toast.error('Supabase is not configured. Password reset is unavailable.');
+                return;
+              }
+
+              setForgotLoading(true);
+              try {
+                const { error } = await sb.auth.resetPasswordForEmail(v, {
+                  redirectTo: window.location.origin + '/reset-password',
+                });
+                if (error) {
+                  toast.error(error.message);
+                  return;
+                }
+
+                toast.success('If an account exists for this email, a reset link has been sent.');
+                setForgotOpen(false);
+                navigate('/reset-sent');
+              } finally {
+                setForgotLoading(false);
+              }
             }}>Send reset link</Button>
           </DialogFooter>
         </DialogContent>
